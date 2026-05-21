@@ -26,14 +26,6 @@ export PATH="$HOME/.local/bin:$PATH"
 eval "$(direnv hook zsh)"
 #### direnv ####
 
-#### lima ####
-# export TESTCONTAINERS_HOST_OVERRIDE=$(limactl shell lima ip a show lima0 | grep 'inet '| awk '{print $2}' | cut -f1 -d"/")
-# export TESTCONTAINERS_HOST_OVERRIDE='127.0.0.1'
-# export TESTCONTAINERS_DOCKER_SOCKET_OVERRIDE='/var/run/docker.sock'
-# export DOCKER_HOST=$(limactl list docker --format 'unix://{{.Dir}}/sock/docker.sock')
-# export DOCKER_BUILDKIT=1
-#### lima ####
-
 #### wezterm ####
 export WEZTERM_CONFIG_FILE="$HOME/.config/wezterm/wezterm.lua"
 #### wezterm ####

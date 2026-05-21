@@ -101,16 +101,6 @@ install_mise_plugins() {
   done
 }
 
-create_docker_on_lima() {
-  # Check limactl is installed
-  if ! type limactl > /dev/null 2>&1; then
-    command echo "limactl is not installed. Please install limactl first."
-    exit 1
-  fi
-  command echo "Create docker on lima"
-  limactl create --name docker ./lima/docker.yaml
-}
-
 install_helm_schema() {
   command echo "Install helm schema plugin"
   command echo "https://github.com/dadav/helm-schema?tab=readme-ov-file#installation"
@@ -218,10 +208,6 @@ while [ $# -gt 0 ];do
       install_mise_plugins
       exit 0
       ;;
-    --create-docker-on-lima|-c)
-      create_docker_on_lima
-      exit 0
-      ;;
     --install-helm-schema|-H)
       install_helm_schema
       exit 0
@@ -251,6 +237,5 @@ setup_local_overrides
 install_helm_schema
 install_sops
 install_mise_plugins
-create_docker_on_lima
 install_aws_cli
 command echo "Install completed!!!!"

@@ -26,8 +26,6 @@
 !.zshrc
 !Brewfile
 !Brewfile.lock.json
-!lima
-!lima/docker.yaml
 
 # Defensive blocks (the whitelist above already excludes these; listed for clarity)
 *.local

@@ -25,7 +25,6 @@
 !.zsh/git-prompt.sh
 !.zshrc
 !Brewfile
-!Brewfile.lock.json
 
 # Defensive blocks (the whitelist above already excludes these; listed for clarity)
 *.local

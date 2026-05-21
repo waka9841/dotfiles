@@ -1,4 +1,3 @@
-tap "homebrew/bundle"
 tap "tofuutils/tap"
 brew "age"
 brew "base64"

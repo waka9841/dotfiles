@@ -1,0 +1,49 @@
+name: macOS Dotfiles CI
+
+on:
+  schedule:
+    - cron: '0 7 * * 1'
+  workflow_dispatch:
+  push:
+    branches:
+      - master
+
+jobs:
+  test:
+    runs-on: macos-latest
+
+    steps:
+    - name: Checkout repository
+      uses: actions/checkout@v2
+
+    - name: Install Xcode Command Line Tools
+      run: ./.bin/install.sh -X
+    
+    - name: Install Homebrew and brew bundle
+      run: ./.bin/install.sh -b
+    
+    - name: Install dotfiles
+      run: ./.bin/install.sh -l
+
+    - name: Install Helm Schema
+      run: ./.bin/install.sh -H
+
+    - name: Install sops
+      run: ./.bin/install.sh -S
+
+    - name: Create docker on lima
+      run: ./.bin/install.sh -c
+
+    - name: Load .zprofile
+      run: |
+        zsh ~/.zprofile 2> error.log; cat error.log
+        if [ -s error.log ]; then
+          false;
+        fi
+
+    - name: Load .zshrc
+      run: |
+        zsh ~/.zshrc 2> error.log; cat error.log
+        if [ -s error.log ]; then
+          false;
+        fi

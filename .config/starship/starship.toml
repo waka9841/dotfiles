@@ -1,0 +1,21 @@
+# https://starship.rs/config/
+
+format = '$all'
+
+[directory]
+truncation_length = 8
+truncation_symbol = '…/'
+
+[username]
+show_always = true
+
+[kubernetes]
+format = '[\[$symbol k8s $context( \($namespace\))\]]($style) '
+disabled = false
+style = "bold blue"
+symbol = "☸️"
+
+# Per-context overrides (cluster-specific colors/symbols) can be appended at
+# shell-start time by placing additional [[kubernetes.contexts]] blocks in
+# ~/.config/starship/contexts.local.toml. ~/.zshrc.local merges the two into
+# a virtual config and points STARSHIP_CONFIG at it.

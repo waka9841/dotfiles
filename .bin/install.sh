@@ -110,7 +110,8 @@ install_helm_schema() {
     exit 1
   fi
   # Install helm schema plugin
-  command helm plugin install https://github.com/dadav/helm-schema
+  # --verify=false: dadav/helm-schema does not support plugin verification
+  command helm plugin install https://github.com/dadav/helm-schema --verify=false
 }
 
 install_sops() {

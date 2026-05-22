@@ -40,4 +40,6 @@ complete -C '/usr/local/bin/aws_completer' aws
 ### aws cli ###
 
 # Local overrides (not tracked in this repo)
-[ -f "$HOME/.zshrc.local" ] && source "$HOME/.zshrc.local"
+if [ -f "$HOME/.zshrc.local" ]; then
+  source "$HOME/.zshrc.local"
+fi

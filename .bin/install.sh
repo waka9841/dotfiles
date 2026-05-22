@@ -157,6 +157,41 @@ setup_local_overrides() {
   fi
 }
 
+install_npm_globals() {
+  command echo "Install npm global packages via mise"
+
+  if ! type mise > /dev/null 2>&1; then
+    command echo "mise is not installed. Please install mise first."
+    exit 1
+  fi
+
+  command echo "Install mise tools (node, etc.) from .config/mise/config.toml"
+  command mise install
+
+  local packages=(
+    "ccusage"
+    "corepack"
+  )
+
+  for pkg in "${packages[@]}"; do
+    command echo "Install npm package: $pkg"
+    command mise exec node -- npm install -g "$pkg"
+  done
+}
+
+install_claude_code() {
+  command echo "Install Claude Code (native install)"
+  command echo "https://docs.claude.com/en/docs/claude-code/quickstart"
+
+  if type claude > /dev/null 2>&1; then
+    command echo "Claude Code is already installed."
+    claude --version
+    return 0
+  fi
+
+  curl -fsSL https://claude.ai/install.sh | bash
+}
+
 install_aws_cli() {
   command echo "Install AWS CLI"
   command echo "https://docs.aws.amazon.com/ja_jp/cli/latest/userguide/getting-started-install.html"
@@ -221,6 +256,14 @@ while [ $# -gt 0 ];do
       install_aws_cli
       exit 0
       ;;
+    --install-claude-code|-C)
+      install_claude_code
+      exit 0
+      ;;
+    --install-npm-globals|-N)
+      install_npm_globals
+      exit 0
+      ;;
     --setup-local-overrides|-L)
       setup_local_overrides
       exit 0
@@ -239,4 +282,6 @@ install_helm_schema
 install_sops
 install_mise_plugins
 install_aws_cli
+install_claude_code
+install_npm_globals
 command echo "Install completed!!!!"

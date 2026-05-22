@@ -47,4 +47,6 @@ export SOPS_AGE_KEY_FILE=~/.config/sops/age/keys.txt
 #### sops ####
 
 # Local overrides (not tracked in this repo)
-[ -f "$HOME/.zprofile.local" ] && source "$HOME/.zprofile.local"
+if [ -f "$HOME/.zprofile.local" ]; then
+  source "$HOME/.zprofile.local"
+fi

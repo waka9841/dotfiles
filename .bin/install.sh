@@ -229,6 +229,47 @@ install_aws_cli() {
   fi
 }
 
+setup_docker_cli_plugins() {
+  command echo "Setup Docker CLI plugins discovery (buildx, compose)"
+  command echo "https://formulae.brew.sh/formula/docker-buildx"
+
+  if ! type brew > /dev/null 2>&1; then
+    command echo "brew is not installed. Please install brew first."
+    exit 1
+  fi
+  if ! type jq > /dev/null 2>&1; then
+    command echo "jq is not installed. Please install jq first."
+    exit 1
+  fi
+
+  # brew は buildx/compose を $(brew --prefix)/lib/docker/cli-plugins に置くが
+  # docker の既定探索パスに含まれないため、config.json に明示登録する (Intel/ARM 両対応)
+  local plugin_dir="$(brew --prefix)/lib/docker/cli-plugins"
+  if [ ! -d "$plugin_dir" ]; then
+    command echo "Plugin dir not found: $plugin_dir (skip; install docker-buildx/docker-compose via brew first)"
+    return 0
+  fi
+
+  local config="$HOME/.docker/config.json"
+  command mkdir -p "$HOME/.docker"
+  if [ ! -f "$config" ]; then
+    command echo "{}" > "$config"
+  fi
+
+  # cliPluginsExtraDirs へ冪等に追加 (既存の auths 等は保持)。一時ファイルで検証後に置換
+  local tmp="$config.tmp.$$"
+  if jq --arg dir "$plugin_dir" \
+       '.cliPluginsExtraDirs = ((.cliPluginsExtraDirs // []) | if index($dir) then . else . + [$dir] end)' \
+       "$config" > "$tmp" && jq empty "$tmp" > /dev/null 2>&1; then
+    command mv "$tmp" "$config"
+    command echo "Registered $plugin_dir in $config (cliPluginsExtraDirs)"
+  else
+    command rm -f "$tmp"
+    command echo "Failed to update $config"
+    exit 1
+  fi
+}
+
 while [ $# -gt 0 ];do
   case ${1} in
     --debug|-d)
@@ -274,6 +315,10 @@ while [ $# -gt 0 ];do
       setup_local_overrides
       exit 0
       ;;
+    --setup-docker-cli-plugins|-D)
+      setup_docker_cli_plugins
+      exit 0
+      ;;
     *)
       ;;
   esac
@@ -284,6 +329,7 @@ xcode_command_line_tools_install
 brew_install
 link_to_homedir
 setup_local_overrides
+setup_docker_cli_plugins
 install_helm_schema
 install_sops
 install_mise_plugins

@@ -22,7 +22,7 @@ brew "kubernetes-cli"
 brew "kustomize"
 brew "mise"
 brew "mysql@8.4"
-brew "opentofu", link: false
+brew "opentofu"
 brew "poppler"
 brew "pyenv"
 brew "starship"

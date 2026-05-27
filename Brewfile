@@ -1,6 +1,7 @@
 tap "tofuutils/tap"
 brew "age"
 brew "base64"
+brew "bitwarden-cli"
 brew "glib"
 brew "colima", restart_service: :changed
 brew "coreutils"

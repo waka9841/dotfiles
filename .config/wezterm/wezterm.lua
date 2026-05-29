@@ -24,6 +24,50 @@ config.colors = {
   split = '#9ece6a',
 }
 
+-- session restore (Wezurrect: メンテ継続中の resurrect.wezterm フォーク)
+-- 本家 MLFlexer/resurrect.wezterm は 2026-05-24 にアーカイブ済みのため乗り換え。
+-- API はドロップイン互換。更新は明示的に wezterm.plugin.update_all() を叩いた時のみ。
+local resurrect = wezterm.plugin.require 'https://github.com/YedPool/Wezurrect'
+-- 保存するスクロールバック行数を制限(保存/復元のパフォーマンス向上)
+resurrect.state_manager.set_max_nlines(2000)
+-- 5分ごとに現在のワークスペース/ウィンドウ/タブ状態を自動保存
+resurrect.state_manager.periodic_save {
+  interval_seconds = 300,
+  save_workspaces = true,
+  save_windows = true,
+  save_tabs = true,
+}
+-- 起動時に前回保存した状態を自動復元
+wezterm.on('gui-startup', resurrect.state_manager.resurrect_on_gui_startup)
+
+-- エラー/失敗をデスクトップ通知に出す(サイレント失敗を防ぐ早期警告)
+-- periodic_save の成功通知だけは抑制してノイズを減らす
+local resurrect_notify_events = {
+  'resurrect.error',
+  'resurrect.state_manager.save_state.finished',
+}
+local is_periodic_save = false
+wezterm.on('resurrect.state_manager.periodic_save.start', function()
+  is_periodic_save = true
+end)
+for _, event in ipairs(resurrect_notify_events) do
+  wezterm.on(event, function(...)
+    if event == 'resurrect.state_manager.save_state.finished' and is_periodic_save then
+      is_periodic_save = false
+      return
+    end
+    local args = { ... }
+    local msg = event
+    for _, v in ipairs(args) do
+      msg = msg .. ' ' .. tostring(v)
+    end
+    local win = wezterm.gui.gui_windows()[1]
+    if win then
+      win:toast_notification('WezTerm - session restore', msg, nil, 4000)
+    end
+  end)
+end
+
 -- Right status: show all panes in the current tab
 wezterm.on('update-right-status', function(window, pane)
   local tab = window:active_tab()
@@ -109,5 +153,42 @@ local keybinds = require 'keybinds'
 config.disable_default_key_bindings = true
 config.keys = keybinds.keys
 config.key_tables = keybinds.key_tables
+
+-- session save/load keybinds (resurrect.wezterm)
+-- Cmd+Shift+S: 現在のワークスペース状態を手動保存
+table.insert(config.keys, {
+  key = 's',
+  mods = 'SHIFT|SUPER',
+  action = wezterm.action_callback(function(win, pane)
+    resurrect.state_manager.save_state(resurrect.workspace_state.get_workspace_state())
+  end),
+})
+-- Cmd+Shift+R: 保存済み状態をfuzzy finderから選んで復元
+table.insert(config.keys, {
+  key = 'r',
+  mods = 'SHIFT|SUPER',
+  action = wezterm.action_callback(function(win, pane)
+    resurrect.fuzzy_loader.fuzzy_load(win, pane, function(id, label)
+      local type = string.match(id, '^([^/]+)') -- '/' より前(workspace/window/tab)
+      id = string.match(id, '([^/]+)$') -- '/' より後
+      id = string.match(id, '(.+)%..+$') -- 拡張子を除去
+      local opts = {
+        relative = true,
+        restore_text = true,
+        on_pane_restore = resurrect.tab_state.default_on_pane_restore,
+      }
+      if type == 'workspace' then
+        local state = resurrect.state_manager.load_state(id, 'workspace')
+        resurrect.workspace_state.restore_workspace(state, opts)
+      elseif type == 'window' then
+        local state = resurrect.state_manager.load_state(id, 'window')
+        resurrect.window_state.restore_window(pane:window(), state, opts)
+      elseif type == 'tab' then
+        local state = resurrect.state_manager.load_state(id, 'tab')
+        resurrect.tab_state.restore_tab(pane:tab(), state, opts)
+      end
+    end)
+  end),
+})
 
 return config

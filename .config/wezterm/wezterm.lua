@@ -160,7 +160,7 @@ config.disable_default_key_bindings = true
 config.keys = keybinds.keys
 config.key_tables = keybinds.key_tables
 
--- session save/load keybinds (resurrect.wezterm)
+-- session save/load keybinds (Wezurrect)
 -- Cmd+Shift+S: 現在のワークスペース状態を手動保存
 table.insert(config.keys, {
   key = 's',

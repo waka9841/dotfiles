@@ -40,6 +40,12 @@ resurrect.state_manager.periodic_save {
 -- 起動時に前回保存した状態を自動復元
 wezterm.on('gui-startup', resurrect.state_manager.resurrect_on_gui_startup)
 
+-- Claude Code セッションを session_id 単位で正確に復元(Tier 2)
+-- ~/.claude/settings.json に SessionStart/Stop フックを冪等に追記し、
+-- ペインごとの session_id を ~/.claude/pane-sessions/<pane_id>.json に記録する。
+-- 復元時は `cd <cwd>` → `claude --resume <session-id>` が自動実行される。
+resurrect.process_handlers.setup_claude_session_hooks()
+
 -- エラー/失敗をデスクトップ通知に出す(サイレント失敗を防ぐ早期警告)
 -- periodic_save の成功通知だけは抑制してノイズを減らす
 local resurrect_notify_events = {

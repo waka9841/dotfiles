@@ -52,6 +52,15 @@ $ ./.bin/install.sh
     ```sh
     $ ./.bin/install.sh --setup-docker-cli-plugins
     ```
+- `--setup-autoreboot` or `-R`: install a launchd daemon that reboots the Mac every Saturday at 03:00 (opt-in; **not** run by the default `install.sh`, requires `sudo`)
+    ```sh
+    $ ./.bin/install.sh --setup-autoreboot
+    ```
+    Uninstall:
+    ```sh
+    $ sudo launchctl bootout system /Library/LaunchDaemons/com.user.autoreboot.plist
+    $ sudo rm /Library/LaunchDaemons/com.user.autoreboot.plist
+    ```
 
 ## command tips
 ### Homebrew

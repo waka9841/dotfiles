@@ -270,6 +270,37 @@ setup_docker_cli_plugins() {
   fi
 }
 
+# 毎週土曜 03:00 に自動再起動する launchd デーモンを登録する (任意実行・要 sudo)
+# 副作用が破壊的なため、デフォルトの全体実行には含めずフラグ指定でのみ実行する。
+setup_autoreboot() {
+  command echo "Setup weekly auto-reboot (Sat 03:00) via launchd"
+
+  local src="./macos/launchd/com.user.autoreboot.plist"
+  local dest="/Library/LaunchDaemons/com.user.autoreboot.plist"
+  local label="com.user.autoreboot"
+
+  if [ ! -f "$src" ]; then
+    command echo "plist source not found: $src (run from the dotfiles repo root)"
+    exit 1
+  fi
+
+  # symlink は不可: launchd は root:wheel 所有・非ユーザー書込みの実体ファイルのみ受理するため cp する
+  command echo "Install $dest (sudo required)"
+  command sudo cp "$src" "$dest"
+  command sudo chown root:wheel "$dest"
+  command sudo chmod 644 "$dest"
+
+  # 冪等化: 既にロード済みなら一旦 bootout してから bootstrap し直す
+  if sudo launchctl list | grep -q "$label"; then
+    command echo "Reload existing daemon ($label)"
+    command sudo launchctl bootout system "$dest" 2>/dev/null || true
+  fi
+  command sudo launchctl bootstrap system "$dest"
+
+  command echo "Verify:"
+  sudo launchctl list | grep "$label" || command echo "(not listed -- check for errors above)"
+}
+
 while [ $# -gt 0 ];do
   case ${1} in
     --debug|-d)
@@ -317,6 +348,10 @@ while [ $# -gt 0 ];do
       ;;
     --setup-docker-cli-plugins|-D)
       setup_docker_cli_plugins
+      exit 0
+      ;;
+    --setup-autoreboot|-R)
+      setup_autoreboot
       exit 0
       ;;
     *)

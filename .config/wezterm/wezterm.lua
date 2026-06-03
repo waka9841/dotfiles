@@ -4,6 +4,19 @@ local wezterm = require 'wezterm'
 -- This will hold the configuration.
 local config = wezterm.config_builder()
 
+-- キーバインドの反応をターミナル内に必ず表示する(macOS の通知許可に依存しない)
+-- 左ステータスにメッセージを出し、数秒後に自動で消す
+local function flash_status(window, text)
+  window:set_left_status(wezterm.format {
+    { Background = { Color = '#9ece6a' } },
+    { Foreground = { Color = '#1a1b26' } },
+    { Text = ' ' .. text .. ' ' },
+  })
+  wezterm.time.call_after(2.5, function()
+    window:set_left_status('')
+  end)
+end
+
 -- This is where you actually apply your config choices
 
 -- For example, changing the color scheme:
@@ -47,21 +60,12 @@ wezterm.on('gui-startup', resurrect.state_manager.resurrect_on_gui_startup)
 resurrect.process_handlers.setup_claude_session_hooks()
 
 -- エラー/失敗をデスクトップ通知に出す(サイレント失敗を防ぐ早期警告)
--- periodic_save の成功通知だけは抑制してノイズを減らす
+-- 保存成功は手動保存(Cmd+Shift+S)側でクリーンな toast を出すためここでは扱わない
 local resurrect_notify_events = {
   'resurrect.error',
-  'resurrect.state_manager.save_state.finished',
 }
-local is_periodic_save = false
-wezterm.on('resurrect.state_manager.periodic_save.start', function()
-  is_periodic_save = true
-end)
 for _, event in ipairs(resurrect_notify_events) do
   wezterm.on(event, function(...)
-    if event == 'resurrect.state_manager.save_state.finished' and is_periodic_save then
-      is_periodic_save = false
-      return
-    end
     local args = { ... }
     local msg = event
     for _, v in ipairs(args) do
@@ -167,6 +171,8 @@ table.insert(config.keys, {
   mods = 'SHIFT|SUPER',
   action = wezterm.action_callback(function(win, pane)
     resurrect.state_manager.save_state(resurrect.workspace_state.get_workspace_state())
+    win:toast_notification('WezTerm', 'セッションを保存しました', nil, 2000)
+    flash_status(win, '✓ セッションを保存しました')
   end),
 })
 -- Cmd+Shift+R: 保存済み状態をfuzzy finderから選んで復元
@@ -175,6 +181,7 @@ table.insert(config.keys, {
   mods = 'SHIFT|SUPER',
   action = wezterm.action_callback(function(win, pane)
     resurrect.fuzzy_loader.fuzzy_load(win, pane, function(id, label)
+      if not id then return end -- fuzzy finder をキャンセルした場合
       local type = string.match(id, '^([^/]+)') -- '/' より前(workspace/window/tab)
       id = string.match(id, '([^/]+)$') -- '/' より後
       id = string.match(id, '(.+)%..+$') -- 拡張子を除去
@@ -193,6 +200,8 @@ table.insert(config.keys, {
         local state = resurrect.state_manager.load_state(id, 'tab')
         resurrect.tab_state.restore_tab(pane:tab(), state, opts)
       end
+      win:toast_notification('WezTerm', 'セッションを復元しました (' .. type .. ')', nil, 2000)
+      flash_status(win, '✓ セッションを復元しました (' .. type .. ')')
     end)
   end),
 })

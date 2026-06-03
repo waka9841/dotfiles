@@ -1,6 +1,19 @@
 local wezterm = require 'wezterm'
 local act = wezterm.action
 
+-- キーバインドの反応をターミナル内に必ず表示する(macOS の通知許可に依存しない)
+-- 左ステータスにメッセージを出し、数秒後に自動で消す
+local function flash_status(window, text)
+  window:set_left_status(wezterm.format {
+    { Background = { Color = '#9ece6a' } },
+    { Foreground = { Color = '#1a1b26' } },
+    { Text = ' ' .. text .. ' ' },
+  })
+  wezterm.time.call_after(2.5, function()
+    window:set_left_status('')
+  end)
+end
+
 return {
   keys = {
   --   { key = 'Tab', mods = 'CTRL', action = act.ActivateTabRelative(1) },
@@ -231,6 +244,10 @@ return {
 
       -- Restore original active pane
       window:perform_action(act.ActivatePaneByIndex(original_index), pane)
+
+      -- 押下されたことが分かるよう完了を通知
+      window:toast_notification('WezTerm', 'ペインサイズを均等化しました', nil, 2000)
+      flash_status(window, '✓ ペインサイズを均等化しました')
     end)},
   },
 

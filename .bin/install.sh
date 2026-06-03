@@ -301,6 +301,56 @@ setup_autoreboot() {
   sudo launchctl list | grep "$label" || command echo "(not listed -- check for errors above)"
 }
 
+# Mikasa.Ansible 用に ansible を pipx で隔離インストールする (任意実行)
+# brew 版は brew upgrade で意図せず最新 core に上がり、対象サーバの Python と
+# 非互換になって動かなくなる事故が起きたため使わない。
+# controller 側 Python は ansible-core 2.15 が対応する 3.11 を mise で供給し、
+# ansible 8.7.0 (= ansible-core 2.15 系) を pipx の隔離環境へ入れる。
+setup_ansible() {
+  command echo "Install ansible (pipx isolated, ansible-core 2.15 / Python 3.11)"
+
+  if ! type mise > /dev/null 2>&1; then
+    command echo "mise is not installed. Please install mise first."
+    exit 1
+  fi
+
+  # ansible-core 2.15 が対応する Python 3.11 を mise で用意する
+  command echo "Ensure Python 3.11 via mise"
+  command mise install python@3.11
+  local py="$(mise exec python@3.11 -- python -c 'import sys; print(sys.executable)')"
+  if [ ! -x "$py" ]; then
+    command echo "python 3.11 not found via mise"
+    exit 1
+  fi
+
+  # pipx を mise の Python 3.11 に入れる (Homebrew Python は PEP 668 で pip --user 不可のため)
+  if ! "$py" -m pipx --version > /dev/null 2>&1; then
+    command echo "Install pipx into mise python 3.11"
+    command "$py" -m pip install --quiet pipx
+  fi
+
+  # 冪等化: 既に入っていれば何もしない (再インストールは `pipx reinstall ansible` 等を手動で)
+  if "$py" -m pipx list --short 2>/dev/null | grep -q '^ansible '; then
+    command echo "ansible is already installed via pipx:"
+    "$py" -m pipx list --short | grep '^ansible'
+    exit 0
+  fi
+
+  # ansible 8.7.0 (ansible-core 2.15 系) を 3.11 の隔離環境へ。shim は ~/.local/bin (PATH 済)
+  # --include-deps: ansible/ansible-playbook/ansible-vault 等は依存の ansible-core 側の
+  # コマンドなので、これが無いと PATH に shim が作られない (ansible-community だけになる)
+  command echo "Install ansible==8.7.0 (bundles ansible-core 2.15) via pipx"
+  command "$py" -m pipx install --include-deps --python "$py" 'ansible==8.7.0'
+
+  # amazon.aws 等が必要とする boto3 を同じ venv に inject する (botocore は boto3 の依存で入る)
+  # (ansible-core 単体だと boto3 を使うタスクが動かなかった経緯への対処)
+  command echo "Inject boto3 into the ansible venv"
+  command "$py" -m pipx inject ansible boto3
+
+  command echo "Verify:"
+  "$HOME/.local/bin/ansible" --version | head -3 || command echo "(ansible not on PATH -- check ~/.local/bin)"
+}
+
 while [ $# -gt 0 ];do
   case ${1} in
     --debug|-d)
@@ -352,6 +402,10 @@ while [ $# -gt 0 ];do
       ;;
     --setup-autoreboot|-R)
       setup_autoreboot
+      exit 0
+      ;;
+    --setup-ansible|-a)
+      setup_ansible
       exit 0
       ;;
     *)

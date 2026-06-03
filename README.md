@@ -61,6 +61,17 @@ $ ./.bin/install.sh
     $ sudo launchctl bootout system /Library/LaunchDaemons/com.user.autoreboot.plist
     $ sudo rm /Library/LaunchDaemons/com.user.autoreboot.plist
     ```
+- `--setup-ansible` or `-a`: install ansible for Mikasa.Ansible via pipx, isolated (opt-in; **not** run by the default `install.sh`)
+    - pins `ansible-core` to the 2.15 series (`ansible==8.7.0`) on Python 3.11 (supplied by mise), because newer `ansible-core` drops Python versions still required on the target servers
+    - avoids the brew build, which `brew upgrade` silently bumps to an incompatible core
+    - injects `boto3`/`botocore` into the venv so `amazon.aws` modules work
+    ```sh
+    $ ./.bin/install.sh --setup-ansible
+    ```
+    Uninstall:
+    ```sh
+    $ python3 -m pipx uninstall ansible   # or: pipx uninstall ansible
+    ```
 
 ## command tips
 ### Homebrew

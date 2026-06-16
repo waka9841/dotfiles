@@ -17,6 +17,57 @@ local function flash_status(window, text)
   end)
 end
 
+-- Claude Code の状態をペイン単位の state ファイルから読む(フックが書き込む)
+-- ~/.claude/pane-state/<pane_id>.json => {"state":"working|waiting|idle","ts":...}
+local function read_pane_state(pane_id)
+  local path = wezterm.home_dir .. '/.claude/pane-state/' .. tostring(pane_id) .. '.json'
+  local f = io.open(path, 'r')
+  if not f then return nil end
+  local content = f:read('*a')
+  f:close()
+  return content:match('"state"%s*:%s*"([^"]+)"')
+end
+
+-- 状態の緊急度(タブ内に複数ペインがあるとき最も緊急な状態を採用)
+local STATE_PRIORITY = { waiting = 3, working = 2, idle = 1 }
+-- bg: アクティブ(彩度明るめ) / dim: 非アクティブ(彩度暗め)
+local STATE_COLORS = {
+  waiting = { bg = '#f7768e', dim = '#6d3a44', glyph = '●' }, -- 要入力: 赤
+  working = { bg = '#e0af68', dim = '#6e5a38', glyph = '◌' }, -- 作業中: 黄
+  idle    = { bg = '#9ece6a', dim = '#56683f', glyph = '✓' }, -- 完了:   緑
+}
+
+-- タブ内の全ペインを走査して最も緊急な Claude 状態を返す(なければ nil)
+local function tab_claude_state(tab)
+  local best, best_prio = nil, 0
+  for _, p in ipairs(tab.panes) do
+    local s = read_pane_state(p.pane_id)
+    local prio = s and STATE_PRIORITY[s] or 0
+    if prio > best_prio then
+      best, best_prio = s, prio
+    end
+  end
+  return best
+end
+
+-- ステータス/タブの再描画間隔(状態色の追従用)
+config.status_update_interval = 1000
+
+-- タブタイトルを Claude 状態で色付けする
+wezterm.on('format-tab-title', function(tab, tabs, panes, conf, hover, max_width)
+  local title = tab.active_pane.title
+  local state = tab_claude_state(tab)
+  local sc = state and STATE_COLORS[state]
+  if sc then
+    return {
+      { Background = { Color = sc.bg } },
+      { Foreground = { Color = '#1a1b26' } },
+      { Text = string.format(' %s %d %s ', sc.glyph, tab.tab_index + 1, title) },
+    }
+  end
+  return string.format(' %d %s ', tab.tab_index + 1, title)
+end)
+
 -- This is where you actually apply your config choices
 
 -- For example, changing the color scheme:
@@ -142,14 +193,27 @@ wezterm.on('update-right-status', function(window, pane)
       pos = h_labels[col_idx[p.left]] or ''
     end
 
-    if p.is_active then
-      table.insert(elements, { Background = { Color = '#9ece6a' } })
+    -- 色相=Claude状態 / 彩度・明度=アクティブか否か
+    local cstate = read_pane_state(p.pane:pane_id())
+    local sc = cstate and STATE_COLORS[cstate]
+    local glyph = ''
+    if sc then
+      glyph = sc.glyph .. ' '
+      if p.is_active then
+        table.insert(elements, { Background = { Color = sc.bg } })  -- 鮮やか
+        table.insert(elements, { Foreground = { Color = '#1a1b26' } })
+      else
+        table.insert(elements, { Background = { Color = sc.dim } })  -- 沈んだ
+        table.insert(elements, { Foreground = { Color = '#c0caf5' } })
+      end
+    elseif p.is_active then
+      table.insert(elements, { Background = { Color = '#7aa2f7' } })  -- 鮮やかな青
       table.insert(elements, { Foreground = { Color = '#1a1b26' } })
     else
-      table.insert(elements, { Background = { Color = '#3b4261' } })
+      table.insert(elements, { Background = { Color = '#3b4261' } })  -- 沈んだ紺(同色相)
       table.insert(elements, { Foreground = { Color = '#a9b1d6' } })
     end
-    table.insert(elements, { Text = string.format(' #%d %s %s ', p.index + 1, pos, label) })
+    table.insert(elements, { Text = string.format(' %s#%d %s %s ', glyph, p.index + 1, pos, label) })
     if i < #sorted then
       table.insert(elements, { Background = { Color = 'none' } })
       table.insert(elements, { Text = ' ' })

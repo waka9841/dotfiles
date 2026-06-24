@@ -54,18 +54,39 @@ end
 config.status_update_interval = 1000
 
 -- タブタイトルを Claude 状態で色付けする
+-- 色相=Claude状態 / 彩度・明度=アクティブか否か(右ステータスのペイン表示と同じ方式)
 wezterm.on('format-tab-title', function(tab, tabs, panes, conf, hover, max_width)
   local title = tab.active_pane.title
   local state = tab_claude_state(tab)
   local sc = state and STATE_COLORS[state]
   if sc then
+    if tab.is_active then
+      return {
+        { Background = { Color = sc.bg } },             -- 鮮やか
+        { Foreground = { Color = '#1a1b26' } },
+        { Text = string.format(' %s %d %s ', sc.glyph, tab.tab_index + 1, title) },
+      }
+    else
+      return {
+        { Background = { Color = sc.dim } },            -- 沈んだ
+        { Foreground = { Color = '#c0caf5' } },
+        { Text = string.format(' %s %d %s ', sc.glyph, tab.tab_index + 1, title) },
+      }
+    end
+  end
+  -- Claude 状態なし: 同色相(青)で彩度・明度のみ変える
+  if tab.is_active then
     return {
-      { Background = { Color = sc.bg } },
+      { Background = { Color = '#7aa2f7' } },           -- 鮮やかな青
       { Foreground = { Color = '#1a1b26' } },
-      { Text = string.format(' %s %d %s ', sc.glyph, tab.tab_index + 1, title) },
+      { Text = string.format(' %d %s ', tab.tab_index + 1, title) },
     }
   end
-  return string.format(' %d %s ', tab.tab_index + 1, title)
+  return {
+    { Background = { Color = '#3b4261' } },             -- 沈んだ紺(同色相)
+    { Foreground = { Color = '#a9b1d6' } },
+    { Text = string.format(' %d %s ', tab.tab_index + 1, title) },
+  }
 end)
 
 -- This is where you actually apply your config choices

@@ -1,5 +1,21 @@
-autoload -Uz compinit
-compinit
+### completion ###
+# kubectl 補完は毎回生成すると遅い(約50ms)ため、fpath にキャッシュして遅延ロードする
+# (kubectl 更新時のみ自動再生成)
+fpath=(~/.zsh/completions $fpath)
+if [[ ! -f ~/.zsh/completions/_kubectl || ${commands[kubectl]} -nt ~/.zsh/completions/_kubectl ]]; then
+	mkdir -p ~/.zsh/completions
+	kubectl completion zsh > ~/.zsh/completions/_kubectl
+fi
+
+autoload -Uz compinit bashcompinit
+# .zcompdump が24時間以内なら補完ディレクトリのセキュリティチェックをスキップ(約300ms短縮)
+if [[ -n ~/.zcompdump(#qN.mh-24) ]]; then
+	compinit -C
+else
+	compinit
+fi
+bashcompinit
+### completion ###
 
 alias ll='ls -al'
 
@@ -12,7 +28,6 @@ function delete-merged-branch() {
 ### git ###
 
 ### kubectl ###
-source <(kubectl completion zsh)
 alias k=kubectl
 ### kubectl ###
 
@@ -34,8 +49,7 @@ export STARSHIP_CONFIG=~/.config/starship/starship.toml
 ### starship ###
 
 ### aws cli ###
-autoload bashcompinit && bashcompinit
-autoload -Uz compinit && compinit
+# compinit / bashcompinit はファイル冒頭で初期化済み
 complete -C '/usr/local/bin/aws_completer' aws
 ### aws cli ###
 

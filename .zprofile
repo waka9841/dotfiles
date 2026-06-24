@@ -13,9 +13,18 @@ fi
 #### Homebrew ####
 
 #### pyenv ####
+# `pyenv init -` は毎回約150msかかるため遅延初期化する。
+# shims を PATH に足しておけば python の実行は即可能で、
+# pyenv コマンド自体を初めて使った時だけ本来の init を実行する。
 export PYENV_ROOT="$HOME/.pyenv"
 command -v pyenv >/dev/null || export PATH="$PYENV_ROOT/bin:$PATH"
-eval "$(pyenv init -)"
+export PATH="$PYENV_ROOT/shims:$PATH"
+export PYENV_SHELL=zsh
+pyenv() {
+	unfunction pyenv
+	eval "$(command pyenv init -)"
+	pyenv "$@"
+}
 #### pyenv ####
 
 #### poetry ####

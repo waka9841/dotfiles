@@ -109,6 +109,27 @@ config.colors = {
   split = '#9ece6a',
 }
 
+-- マウスでのリンク遷移
+-- Claude Code のような TUI はマウスレポートを有効化するため、クリックが
+-- アプリ側に奪われ既定の CTRL+クリックではリンクが開けない。
+-- mouse_reporting=true を指定し、マウスレポート中でも CTRL+クリックで開けるようにする。
+-- Down は Nop にしてアプリへの誤伝播(Down だけ届く)を防ぐ。
+local act = wezterm.action
+config.mouse_bindings = {
+  {
+    event = { Up = { streak = 1, button = 'Left' } },
+    mods = 'CTRL',
+    action = act.OpenLinkAtMouseCursor,
+    mouse_reporting = true,
+  },
+  {
+    event = { Down = { streak = 1, button = 'Left' } },
+    mods = 'CTRL',
+    action = act.Nop,
+    mouse_reporting = true,
+  },
+}
+
 -- session restore (Wezurrect: メンテ継続中の resurrect.wezterm フォーク)
 -- 本家 MLFlexer/resurrect.wezterm は 2026-05-24 にアーカイブ済みのため乗り換え。
 -- API はドロップイン互換。更新は明示的に wezterm.plugin.update_all() を叩いた時のみ。

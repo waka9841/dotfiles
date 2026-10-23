@@ -249,6 +249,33 @@ return {
       window:toast_notification('WezTerm', 'ペインサイズを均等化しました', nil, 2000)
       flash_status(window, '✓ ペインサイズを均等化しました')
     end)},
+    -- Cmd+Shift+I: Claude状態判定のデバッグ表示(pane_id / 状態ファイル生内容 / 画面バッファ判定 / 最終採用状態)
+    -- 状態判定ロジック本体は wezterm.lua が _G.ClaudePaneState 経由で公開しているものを再利用する(コピペ実装にしない)
+    { key = 'i', mods = 'SHIFT|SUPER', action = wezterm.action_callback(function(window, pane)
+      local pid = pane:pane_id()
+      local parts = { 'pane_id=' .. tostring(pid) }
+      local cps = _G.ClaudePaneState
+      if not cps then
+        table.insert(parts, 'ClaudePaneState未初期化(wezterm.lua未読込?)')
+      else
+        local path = wezterm.home_dir .. '/.claude/pane-state/' .. tostring(pid) .. '.json'
+        local f = io.open(path, 'r')
+        if f then
+          local content = f:read('*a')
+          f:close()
+          table.insert(parts, 'file=' .. content:gsub('%s+', ' '))
+        else
+          table.insert(parts, 'file=<なし>')
+        end
+        local buf = cps.buffer_fallback_state(pid)
+        table.insert(parts, 'buffer検出=' .. tostring(buf))
+        local final = cps.effective_pane_state(pid, true)
+        table.insert(parts, '採用状態=' .. tostring(final))
+      end
+      local msg = table.concat(parts, ' / ')
+      window:toast_notification('Claude Debug', msg, nil, 6000)
+      flash_status(window, msg)
+    end)},
   },
 
   key_tables = {

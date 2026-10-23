@@ -104,6 +104,63 @@ claude-mcp-copy-subdirs() {
 }
 ### claude mcp ###
 
+### update-all ###
+# brew / Claude Code / mise / npm グローバル / uv tool をまとめて更新する
+# gcloud・uv は brew 管理なので brew upgrade に含まれる
+# brew upgrade は --greedy 付き: 自己更新型の cask (raycast 等) は付けないと対象外になる。更新時にアプリが終了する
+# macOS 本体は sudo が要るため一覧表示のみ (更新は システム設定 > ソフトウェアアップデート から)
+# 最後に、更新し残した brew / mise と、brew 管理外のアプリ (各アプリ内で更新が必要) を表示する
+update-all() {
+	emulate -L zsh
+	setopt local_options null_glob
+	local -a failed
+
+	_update_step() {
+		print -P "\n%F{cyan}==> $1%f"
+		shift
+		"$@" || failed+=("$*")
+	}
+
+	_update_step "Homebrew: update"  brew update
+	_update_step "Homebrew: upgrade" brew upgrade --greedy
+	_update_step "Homebrew: cleanup" brew cleanup
+	_update_step "Claude Code"       claude update
+	_update_step "mise: upgrade"     mise upgrade
+	_update_step "npm: global"       npm update -g
+	_update_step "uv: tool upgrade"  uv tool upgrade --all
+	_update_step "macOS: 更新の確認" softwareupdate --list
+
+	unfunction _update_step
+
+	print -P "\n%F{cyan}==> 残っている更新%f"
+	print "[brew]"; brew outdated --greedy --verbose
+	print "[mise]"; mise outdated
+
+	# brew 管理外のアプリは自動では更新されないので、版を並べて各アプリでの更新を促す
+	local -a brew_apps
+	brew_apps=( ${(f)"$(brew info --cask --json=v2 --installed | jq -r '.casks[].artifacts[] | objects | .app? // empty | .[] | strings')"} )
+	brew_apps=( ${brew_apps:t} )
+	print -P "\n%F{cyan}==> brew 管理外のアプリ (各アプリ / App Store / Self Service で更新を確認)%f"
+	local app id ver note
+	for app in /Applications/*.app ~/Applications/*.app; do
+		(( ${brew_apps[(Ie)${app:t}]} )) && continue
+		id=$(defaults read "$app/Contents/Info" CFBundleIdentifier 2>/dev/null)
+		[[ $id == com.apple.* ]] && continue
+		ver=$(defaults read "$app/Contents/Info" CFBundleShortVersionString 2>/dev/null)
+		note=""
+		[[ -d $app/Contents/_MASReceipt ]] && note=" [App Store]"
+		printf '  - %s %s%s\n' "${app:t:r}" "$ver" "$note"
+	done
+
+	if (( ${#failed} )); then
+		print -P "\n%F{red}[update-all] 失敗したステップ:%f"
+		printf '  - %s\n' "${failed[@]}"
+		return 1
+	fi
+	print -P "\n%F{green}[update-all] 完了%f"
+}
+### update-all ###
+
 # Local overrides (not tracked in this repo)
 if [ -f "$HOME/.zshrc.local" ]; then
   source "$HOME/.zshrc.local"
